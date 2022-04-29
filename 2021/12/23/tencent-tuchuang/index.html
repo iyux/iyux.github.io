@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/iyux.github.io/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/iyux.github.io/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/iyux.github.io/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/iyux.github.io/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/iyux.github.io/css/main.css">
+
+
+<link rel="stylesheet" href="/iyux.github.io/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"iyux.github.io","root":"/iyux.github.io/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="缘起 我略微接触过摄影，需要在blog上分享一点照片，记录一些生活，图片存在本地通过MD来引用不太合适，一方面图片都挺大的，另一方面我也想把这些照片好好分类归档。看了几篇知乎，网络上免费图床，会担心这些机构的生存周期，加上很多都是自己拍的照片，还是换一种方案。   自建服务器存储需要用到云服务器或者vps，自己维护起来也比较费劲，加上开销也挺大的 云服务器商提供的对象存储">
+<meta property="og:type" content="article">
+<meta property="og:title" content="腾讯云做图床">
+<meta property="og:url" content="https://iyux.github.io/2021/12/23/tencent-tuchuang/index.html">
+<meta property="og:site_name" content="赶路贝壳">
+<meta property="og:description" content="缘起 我略微接触过摄影，需要在blog上分享一点照片，记录一些生活，图片存在本地通过MD来引用不太合适，一方面图片都挺大的，另一方面我也想把这些照片好好分类归档。看了几篇知乎，网络上免费图床，会担心这些机构的生存周期，加上很多都是自己拍的照片，还是换一种方案。   自建服务器存储需要用到云服务器或者vps，自己维护起来也比较费劲，加上开销也挺大的 云服务器商提供的对象存储">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://yuximage-1303861842.cos.ap-nanjing.myqcloud.com/2021-4/0417-1.jpg">
+<meta property="article:published_time" content="2021-12-23T05:28:41.000Z">
+<meta property="article:modified_time" content="2021-12-23T05:28:41.227Z">
+<meta property="article:author" content="yux">
+<meta property="article:tag" content="hexo">
+<meta property="article:tag" content="环境搭建">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://yuximage-1303861842.cos.ap-nanjing.myqcloud.com/2021-4/0417-1.jpg">
+
+<link rel="canonical" href="https://iyux.github.io/2021/12/23/tencent-tuchuang/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>腾讯云做图床 | 赶路贝壳</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<link rel="alternate" href="/iyux.github.io/atom.xml" title="赶路贝壳" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/iyux.github.io/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">赶路贝壳</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">想点好活儿整整</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/iyux.github.io/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/iyux.github.io/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/iyux.github.io/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签<span class="badge">4</span></a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/iyux.github.io/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类<span class="badge">6</span></a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/iyux.github.io/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档<span class="badge">6</span></a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://iyux.github.io/2021/12/23/tencent-tuchuang/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/iyux.github.io/images/head.jpg">
+      <meta itemprop="name" content="yux">
+      <meta itemprop="description" content="虚假快乐小牛马">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="赶路贝壳">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          腾讯云做图床
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2021-12-23 13:28:41" itemprop="dateCreated datePublished" datetime="2021-12-23T13:28:41+08:00">2021-12-23</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/iyux.github.io/categories/%E6%90%AC%E7%A0%96%E4%B9%8B%E8%B7%AF/" itemprop="url" rel="index"><span itemprop="name">搬砖之路</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/iyux.github.io/categories/%E6%90%AC%E7%A0%96%E4%B9%8B%E8%B7%AF/hexo/" itemprop="url" rel="index"><span itemprop="name">hexo</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="缘起"><a href="#缘起" class="headerlink" title="缘起"></a>缘起</h1><blockquote>
+<p>我略微接触过摄影，需要在blog上分享一点照片，记录一些生活，图片存在本地通过MD来引用不太合适，一方面图片都挺大的，另一方面我也想把这些照片好好分类归档。<br>看了几篇知乎，网络上免费图床，会担心这些机构的生存周期，加上很多都是自己拍的照片，还是换一种方案。</p>
+</blockquote>
+<ul>
+<li>自建服务器存储<br>需要用到云服务器或者vps，自己维护起来也比较费劲，加上开销也挺大的</li>
+<li>云服务器商提供的对象存储</li>
+</ul>
+<span id="more"></span>
+<hr>
+<p>一开始选择用七牛云，每个月有10g的免费空间，扩展也不是很贵。<br>存在的问题：<br>七牛云是通过CDN加速的方式，那么需要一个域名(可以解析二级域名image.yuxwayward.top)来进行绑定。但是在配置过程中了解到域名需要进行备案<br>，我top域名在腾讯云上购买的，一番周折，得到的结果是域名要和ip一起绑定在工信部进行备案，虽然有一些“方法”可以简化，但是终究还是太麻烦</p>
+<hr>
+<p>腾讯云COS的选择：<br>腾讯云上只要认证过的用户，便可以购买COS的服务，且对象是通过腾讯相关的url进行访问，这就免去了备案的烦恼</p>
+<p>腾讯云上的COS礼包，1元一年，50g/月，有get和post的次数限制，对于我来说完全够用了，我也不指望有几个人能看，自己写写东西就好了</p>
+<p>购买之后，在腾讯云的COS页面先，上传文件，复制地址，再md上写图片引用<br>测试如下：<br><img src="https://yuximage-1303861842.cos.ap-nanjing.myqcloud.com/2021-4/0417-1.jpg" alt="iamge"></p>
+<h1 id="其他"><a href="#其他" class="headerlink" title="其他"></a>其他</h1><ul>
+<li>腾讯COS有防盗链的设置，我大概整个白名单就行了吧-.-</li>
+<li>PicGo可以对腾讯COS进行管理，批量操作什么的，这部分再进行学习</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/iyux.github.io/tags/hexo/" rel="tag"># hexo</a>
+              <a href="/iyux.github.io/tags/%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/" rel="tag"># 环境搭建</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/iyux.github.io/2021/12/23/sorry1223/" rel="prev" title="1223想起来了博客">
+      <i class="fa fa-chevron-left"></i> 1223想起来了博客
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/iyux.github.io/2022/04/29/TVM-ExprFunctor-design/" rel="next" title="TVM遍历器设计,functor(仿函数)">
+      TVM遍历器设计,functor(仿函数) <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%BC%98%E8%B5%B7"><span class="nav-number">1.</span> <span class="nav-text">缘起</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%85%B6%E4%BB%96"><span class="nav-number">2.</span> <span class="nav-text">其他</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="yux"
+      src="/iyux.github.io/images/head.jpg">
+  <p class="site-author-name" itemprop="name">yux</p>
+  <div class="site-description" itemprop="description">虚假快乐小牛马</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/iyux.github.io/archives/">
+        
+          <span class="site-state-item-count">6</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/iyux.github.io/categories/">
+          
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/iyux.github.io/tags/">
+          
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/iyux" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;iyux" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yux.scse@gmail.com" title="E-Mail → mailto:yux.scse@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yux</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/iyux.github.io/lib/anime.min.js"></script>
+  <script src="/iyux.github.io/lib/velocity/velocity.min.js"></script>
+  <script src="/iyux.github.io/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/iyux.github.io/js/utils.js"></script>
+
+<script src="/iyux.github.io/js/motion.js"></script>
+
+
+<script src="/iyux.github.io/js/schemes/pisces.js"></script>
+
+
+<script src="/iyux.github.io/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

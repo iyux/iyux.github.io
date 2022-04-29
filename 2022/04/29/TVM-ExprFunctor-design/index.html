@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/iyux.github.io/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/iyux.github.io/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/iyux.github.io/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/iyux.github.io/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/iyux.github.io/css/main.css">
+
+
+<link rel="stylesheet" href="/iyux.github.io/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"iyux.github.io","root":"/iyux.github.io/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="用法功能是提供一个能够对图结构(节点为对象Expr)的数据流图进行深度优先搜索的基础类，并且可以多态注册当处理对象为不同的Expr子类时进行不同的处理。具体的遍历器基础类ExprFunctor实现为:">
+<meta property="og:type" content="article">
+<meta property="og:title" content="TVM遍历器设计,functor(仿函数)">
+<meta property="og:url" content="https://iyux.github.io/2022/04/29/TVM-ExprFunctor-design/index.html">
+<meta property="og:site_name" content="赶路贝壳">
+<meta property="og:description" content="用法功能是提供一个能够对图结构(节点为对象Expr)的数据流图进行深度优先搜索的基础类，并且可以多态注册当处理对象为不同的Expr子类时进行不同的处理。具体的遍历器基础类ExprFunctor实现为:">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2022-04-28T16:28:10.000Z">
+<meta property="article:modified_time" content="2022-04-28T16:28:10.126Z">
+<meta property="article:author" content="yux">
+<meta property="article:tag" content="TVM">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://iyux.github.io/2022/04/29/TVM-ExprFunctor-design/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>TVM遍历器设计,functor(仿函数) | 赶路贝壳</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<link rel="alternate" href="/iyux.github.io/atom.xml" title="赶路贝壳" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/iyux.github.io/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">赶路贝壳</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">想点好活儿整整</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/iyux.github.io/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/iyux.github.io/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/iyux.github.io/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签<span class="badge">4</span></a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/iyux.github.io/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类<span class="badge">6</span></a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/iyux.github.io/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档<span class="badge">6</span></a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://iyux.github.io/2022/04/29/TVM-ExprFunctor-design/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/iyux.github.io/images/head.jpg">
+      <meta itemprop="name" content="yux">
+      <meta itemprop="description" content="虚假快乐小牛马">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="赶路贝壳">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          TVM遍历器设计,functor(仿函数)
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2022-04-29 00:28:10" itemprop="dateCreated datePublished" datetime="2022-04-29T00:28:10+08:00">2022-04-29</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/iyux.github.io/categories/%E4%BB%A3%E7%A0%81%E9%98%85%E8%AF%BB/" itemprop="url" rel="index"><span itemprop="name">代码阅读</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/iyux.github.io/categories/%E4%BB%A3%E7%A0%81%E9%98%85%E8%AF%BB/TVM/" itemprop="url" rel="index"><span itemprop="name">TVM</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="用法"><a href="#用法" class="headerlink" title="用法"></a>用法</h2><p>功能是提供一个能够对图结构(节点为对象Expr)的数据流图进行深度优先搜索的基础类，并且可以多态注册当处理对象为不同的Expr子类时进行不同的处理。<br>具体的遍历器基础类ExprFunctor实现为:</p>
+<span id="more"></span>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span> &lt;<span class="keyword">typename</span> R, <span class="keyword">typename</span>... Args&gt;</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">ExprFunctor</span>&lt;</span><span class="built_in">R</span>(<span class="keyword">const</span> Expr&amp; n, Args...)&gt; &#123;</span><br><span class="line"> <span class="keyword">private</span>:</span><br><span class="line">  <span class="keyword">using</span> TSelf = ExprFunctor&lt;<span class="built_in">R</span>(<span class="keyword">const</span> Expr&amp; n, Args...)&gt;;</span><br><span class="line">  <span class="keyword">using</span> FType = tvm::NodeFunctor&lt;<span class="built_in">R</span>(<span class="keyword">const</span> ObjectRef&amp; n, TSelf* self, Args...)&gt;;</span><br><span class="line"></span><br><span class="line"> <span class="keyword">public</span>:</span><br><span class="line">  <span class="comment">/*! \brief the result type of this functor */</span></span><br><span class="line">  <span class="keyword">using</span> result_type = R;</span><br><span class="line">  <span class="comment">/*! \brief virtual destructor */</span></span><br><span class="line">  <span class="keyword">virtual</span> ~<span class="built_in">ExprFunctor</span>() &#123;&#125;</span><br><span class="line">  <span class="comment">/*!</span></span><br><span class="line"><span class="comment">   * \brief Same as call.</span></span><br><span class="line"><span class="comment">   * \param n The expression node.</span></span><br><span class="line"><span class="comment">   * \param args Additional arguments.</span></span><br><span class="line"><span class="comment">   * \return The result of the call</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function">R <span class="title">operator</span><span class="params">()</span><span class="params">(<span class="keyword">const</span> Expr&amp; n, Args... args)</span> </span>&#123; <span class="keyword">return</span> <span class="built_in">VisitExpr</span>(n, std::forward&lt;Args&gt;(args)...); &#125;</span><br><span class="line">  <span class="comment">/*!</span></span><br><span class="line"><span class="comment">   * \brief The functor call.</span></span><br><span class="line"><span class="comment">   * \param n The expression node.</span></span><br><span class="line"><span class="comment">   * \param args Additional arguments.</span></span><br><span class="line"><span class="comment">   * \return The result of the call</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> R <span class="title">VisitExpr</span><span class="params">(<span class="keyword">const</span> Expr&amp; n, Args... args)</span> </span>&#123;</span><br><span class="line">    <span class="built_in">ICHECK</span>(n.<span class="built_in">defined</span>()) &lt;&lt; <span class="string">&quot;Found null pointer node while traversing AST. The previous pass may &quot;</span></span><br><span class="line">                           <span class="string">&quot;have generated invalid data.&quot;</span>;</span><br><span class="line">    <span class="keyword">static</span> FType vtable = <span class="built_in">InitVTable</span>();</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">vtable</span>(n, <span class="keyword">this</span>, std::forward&lt;Args&gt;(args)...);</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="comment">// Functions that can be overriden by subclass</span></span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> R <span class="title">VisitExpr_</span><span class="params">(<span class="keyword">const</span> ConstantNode* op, Args... args)</span> EXPR_FUNCTOR_DEFAULT</span>;</span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> R <span class="title">VisitExpr_</span><span class="params">(<span class="keyword">const</span> TupleNode* op, Args... args)</span> EXPR_FUNCTOR_DEFAULT</span>;</span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> R <span class="title">VisitExpr_</span><span class="params">(<span class="keyword">const</span> VarNode* op, Args... args)</span> EXPR_FUNCTOR_DEFAULT</span>;</span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> R <span class="title">VisitExpr_</span><span class="params">(<span class="keyword">const</span> GlobalVarNode* op, Args... args)</span> EXPR_FUNCTOR_DEFAULT</span>;</span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> R <span class="title">VisitExpr_</span><span class="params">(<span class="keyword">const</span> FunctionNode* op, Args... args)</span> EXPR_FUNCTOR_DEFAULT</span>;</span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> R <span class="title">VisitExpr_</span><span class="params">(<span class="keyword">const</span> CallNode* op, Args... args)</span> EXPR_FUNCTOR_DEFAULT</span>;</span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> R <span class="title">VisitExpr_</span><span class="params">(<span class="keyword">const</span> LetNode* op, Args... args)</span> EXPR_FUNCTOR_DEFAULT</span>;</span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> R <span class="title">VisitExpr_</span><span class="params">(<span class="keyword">const</span> IfNode* op, Args... args)</span> EXPR_FUNCTOR_DEFAULT</span>;</span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> R <span class="title">VisitExpr_</span><span class="params">(<span class="keyword">const</span> OpNode* op, Args... args)</span> EXPR_FUNCTOR_DEFAULT</span>;</span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> R <span class="title">VisitExpr_</span><span class="params">(<span class="keyword">const</span> TupleGetItemNode* op, Args... args)</span> EXPR_FUNCTOR_DEFAULT</span>;</span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> R <span class="title">VisitExpr_</span><span class="params">(<span class="keyword">const</span> RefCreateNode* op, Args... args)</span> EXPR_FUNCTOR_DEFAULT</span>;</span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> R <span class="title">VisitExpr_</span><span class="params">(<span class="keyword">const</span> RefReadNode* op, Args... args)</span> EXPR_FUNCTOR_DEFAULT</span>;</span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> R <span class="title">VisitExpr_</span><span class="params">(<span class="keyword">const</span> RefWriteNode* op, Args... args)</span> EXPR_FUNCTOR_DEFAULT</span>;</span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> R <span class="title">VisitExpr_</span><span class="params">(<span class="keyword">const</span> ConstructorNode* op, Args... args)</span> EXPR_FUNCTOR_DEFAULT</span>;</span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> R <span class="title">VisitExpr_</span><span class="params">(<span class="keyword">const</span> MatchNode* op, Args... args)</span> EXPR_FUNCTOR_DEFAULT</span>;</span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> R <span class="title">VisitExprDefault_</span><span class="params">(<span class="keyword">const</span> Object* op, Args...)</span> </span>&#123;</span><br><span class="line">    <span class="built_in">LOG</span>(FATAL) &lt;&lt; <span class="string">&quot;Do not have a default for &quot;</span> &lt;&lt; op-&gt;<span class="built_in">GetTypeKey</span>();</span><br><span class="line">    <span class="keyword">throw</span>;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line"> <span class="keyword">private</span>:</span><br><span class="line">  <span class="comment">// initialize the vtable.</span></span><br><span class="line">  <span class="function"><span class="keyword">static</span> FType <span class="title">InitVTable</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    FType vtable;</span><br><span class="line">    <span class="comment">// Set dispatch</span></span><br><span class="line">    <span class="built_in">RELAY_EXPR_FUNCTOR_DISPATCH</span>(ConstantNode);</span><br><span class="line">    <span class="built_in">RELAY_EXPR_FUNCTOR_DISPATCH</span>(TupleNode);</span><br><span class="line">    <span class="built_in">RELAY_EXPR_FUNCTOR_DISPATCH</span>(VarNode);</span><br><span class="line">    <span class="built_in">RELAY_EXPR_FUNCTOR_DISPATCH</span>(GlobalVarNode);</span><br><span class="line">    <span class="built_in">RELAY_EXPR_FUNCTOR_DISPATCH</span>(FunctionNode);</span><br><span class="line">    <span class="built_in">RELAY_EXPR_FUNCTOR_DISPATCH</span>(CallNode);</span><br><span class="line">    <span class="built_in">RELAY_EXPR_FUNCTOR_DISPATCH</span>(LetNode);</span><br><span class="line">    <span class="built_in">RELAY_EXPR_FUNCTOR_DISPATCH</span>(IfNode);</span><br><span class="line">    <span class="built_in">RELAY_EXPR_FUNCTOR_DISPATCH</span>(OpNode);</span><br><span class="line">    <span class="built_in">RELAY_EXPR_FUNCTOR_DISPATCH</span>(TupleGetItemNode);</span><br><span class="line">    <span class="built_in">RELAY_EXPR_FUNCTOR_DISPATCH</span>(RefCreateNode);</span><br><span class="line">    <span class="built_in">RELAY_EXPR_FUNCTOR_DISPATCH</span>(RefReadNode);</span><br><span class="line">    <span class="built_in">RELAY_EXPR_FUNCTOR_DISPATCH</span>(RefWriteNode);</span><br><span class="line">    <span class="built_in">RELAY_EXPR_FUNCTOR_DISPATCH</span>(ConstructorNode);</span><br><span class="line">    <span class="built_in">RELAY_EXPR_FUNCTOR_DISPATCH</span>(MatchNode);</span><br><span class="line">    <span class="keyword">return</span> vtable;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>遍历器的基类，多态对节点进行访问。具体到每个子类的实现，如常量折叠pass的图深度优先遍历器，重载各个节点遍历函数，添加对具体node的的修改操作。<br>内部通过访问类的静态变量 vtable 进行，vtable是一个仿函数，定义为</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">define</span> RELAY_EXPR_FUNCTOR_DISPATCH(OP)                                                    \</span></span><br><span class="line"><span class="meta">  vtable.template set_dispatch<span class="meta-string">&lt;OP&gt;</span>([](const ObjectRef&amp; n, TSelf* self, Args... args) &#123;     \</span></span><br><span class="line"><span class="meta">    return self-&gt;VisitExpr_(static_cast<span class="meta-string">&lt;const OP*&gt;</span>(n.get()), std::forward<span class="meta-string">&lt;Args&gt;</span>(args)...); \</span></span><br><span class="line"><span class="meta">  &#125;);</span></span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>vtable.template 的语法表示 vtable模板类 中的模板函数，具体解析见<a target="_blank" rel="noopener" href="https://blog.csdn.net/kh815/article/details/115680799">调用模板类的模板函数前必须加template关键字的情况</a>,参考《C++ Template》一书中的9.3.2和9.3.3两节</p>
+</blockquote>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">template</span> &lt;<span class="keyword">typename</span> R, <span class="keyword">typename</span>... Args&gt;</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">NodeFunctor</span>&lt;</span><span class="built_in">R</span>(<span class="keyword">const</span> ObjectRef&amp; n, Args...)&gt; &#123;</span><br><span class="line"> <span class="keyword">private</span>:</span><br><span class="line">  <span class="comment">/*! \brief internal function pointer type */</span></span><br><span class="line">  <span class="function"><span class="keyword">typedef</span> <span class="title">R</span> <span class="params">(*FPointer)</span><span class="params">(<span class="keyword">const</span> ObjectRef&amp; n, Args...)</span></span>;</span><br><span class="line">  <span class="comment">/*! \brief refer to itself. */</span></span><br><span class="line">  <span class="keyword">using</span> TSelf = NodeFunctor&lt;<span class="built_in">R</span>(<span class="keyword">const</span> ObjectRef&amp; n, Args...)&gt;;</span><br><span class="line">  <span class="comment">/*! \brief internal function table */</span></span><br><span class="line">  std::vector&lt;FPointer&gt; func_;</span><br><span class="line"></span><br><span class="line"> <span class="keyword">public</span>:</span><br><span class="line">  <span class="comment">/*! \brief the result type of this functor */</span></span><br><span class="line">  <span class="keyword">using</span> result_type = R;</span><br><span class="line">  <span class="comment">/*!</span></span><br><span class="line"><span class="comment">   * \brief Whether the functor can dispatch the corresponding Node</span></span><br><span class="line"><span class="comment">   * \param n The node to be dispatched</span></span><br><span class="line"><span class="comment">   * \return Whether dispatching function is registered for n&#x27;s type.</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function"><span class="keyword">bool</span> <span class="title">can_dispatch</span><span class="params">(<span class="keyword">const</span> ObjectRef&amp; n)</span> <span class="keyword">const</span> </span>&#123;</span><br><span class="line">    <span class="keyword">uint32_t</span> type_index = n-&gt;<span class="built_in">type_index</span>();</span><br><span class="line">    <span class="keyword">return</span> type_index &lt; func_.<span class="built_in">size</span>() &amp;&amp; func_[type_index] != <span class="literal">nullptr</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="comment">/*!</span></span><br><span class="line"><span class="comment">   * \brief invoke the functor, dispatch on type of n</span></span><br><span class="line"><span class="comment">   * \param n The Node argument</span></span><br><span class="line"><span class="comment">   * \param args The additional arguments</span></span><br><span class="line"><span class="comment">   * \return The result.</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function">R <span class="title">operator</span><span class="params">()</span><span class="params">(<span class="keyword">const</span> ObjectRef&amp; n, Args... args)</span> <span class="keyword">const</span> </span>&#123;</span><br><span class="line">    <span class="built_in">ICHECK</span>(<span class="built_in">can_dispatch</span>(n)) &lt;&lt; <span class="string">&quot;NodeFunctor calls un-registered function on type &quot;</span></span><br><span class="line">                            &lt;&lt; n-&gt;<span class="built_in">GetTypeKey</span>();</span><br><span class="line">    <span class="keyword">return</span> (*func_[n-&gt;<span class="built_in">type_index</span>()])(n, std::forward&lt;Args&gt;(args)...);</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="comment">/*!</span></span><br><span class="line"><span class="comment">   * \brief set the dispacher for type TNode</span></span><br><span class="line"><span class="comment">   * \param f The function to be set.</span></span><br><span class="line"><span class="comment">   * \tparam TNode the type of Node to be dispatched.</span></span><br><span class="line"><span class="comment">   * \return reference to self.</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="keyword">template</span> &lt;<span class="keyword">typename</span> TNode&gt;</span><br><span class="line">  <span class="function">TSelf&amp; <span class="title">set_dispatch</span><span class="params">(FPointer f)</span> </span>&#123;  <span class="comment">// NOLINT(*)</span></span><br><span class="line">    <span class="keyword">uint32_t</span> tindex = TNode::<span class="built_in">RuntimeTypeIndex</span>();</span><br><span class="line">    <span class="keyword">if</span> (func_.<span class="built_in">size</span>() &lt;= tindex) &#123;</span><br><span class="line">      func_.<span class="built_in">resize</span>(tindex + <span class="number">1</span>, <span class="literal">nullptr</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="built_in">ICHECK</span>(func_[tindex] == <span class="literal">nullptr</span>) &lt;&lt; <span class="string">&quot;Dispatch for &quot;</span> &lt;&lt; TNode::_type_key &lt;&lt; <span class="string">&quot; is already set&quot;</span>;</span><br><span class="line">    func_[tindex] = f;</span><br><span class="line">    <span class="keyword">return</span> *<span class="keyword">this</span>;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+<p>NodeFunctor是一个对于节点node的仿函数类，输入为<code>const ObjectRef&amp; n, Args...</code> 返回值是 R，这个类有多态的属性，可注册函数。通过不同的ObjectRef参数从而多态调用注册好的函数</p>
+<p>在ExprFunctor私有变量里，宏将对应的静态成员进行初始化，绑定到对应的节点方法之中，绑定的方法是ExprFunctor 的 VisitExper_方法，当外部调用该对象时，调用的路径为</p>
+<p>R VisitExpr()<br>获得类的静态 vtable 次部分的函数已经被宏定义时，进行静态初始化，函数已经注册到NodeFunctor::func_中了</p>
+<p>NodeFunctor(objref&amp;, arg…)<br>调用子类objref对应的位于，func_中的函数。</p>
+<blockquote>
+<p>此部分看起来令人疑惑，在遍历器的构造上又多套了一层 <code>static FType vtable = InitVTable()</code>， 其实光通过VisitExpr的多态调用就已经能完成深搜功能了，vtable的设计看起来多余，其实不然，在文章最后给出我的理解</p>
+</blockquote>
+<p>遍历器的基类已经通过多态分发搭出了基本的框架。<br>下面的几种遍历子类的实现</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">ExprVisitor&#123;</span><br><span class="line">    ...</span><br><span class="line">    std::unordered_map&lt;<span class="keyword">const</span> Object*, <span class="keyword">size_t</span>&gt; visit_counter_;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">ExprMutator&#123;</span><br><span class="line">    ...</span><br><span class="line">    std::unordered_map&lt;Expr, Expr, ObjectPtrHash, ObjectPtrEqual&gt; memo_;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/*!</span></span><br><span class="line"><span class="comment"> * \brief A wrapper around ExprVisitor which traverses the Dataflow Normal AST.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * MixedModeVisitor treats Expr as dataflow graph, and visits in post-DFS order</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * MixedModeVisitor provides the same recursive API as ExprVisitor, and uses</span></span><br><span class="line"><span class="comment"> * recursion to traverse most forms of the IR, but under the hood it expands nested dataflow regions</span></span><br><span class="line"><span class="comment"> * of the graph and processes them iteratively to prevent stack overflows</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MixedModeVisitor</span> :</span> <span class="keyword">public</span> ::tvm::relay::ExprVisitor&#123;</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MixedModeMutator</span> :</span> <span class="keyword">public</span> ::tvm::relay::ExprMutator&#123;</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+
+<hr>
+<p>FunctorNode<br>的作用在于，在自己定义的类里，如果想要对ObjectRef进行操作，并且这种操作的多态的，可以注册函数，且易于扩展。</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"> \\brief Useful macro to set NodeFunctor dispatch in a global <span class="keyword">static</span> field.</span><br><span class="line"></span><br><span class="line"><span class="comment">// Use NodeFunctor to implement ReprPrinter similar to Visitor Pattern.</span></span><br><span class="line"><span class="comment">// vtable allows easy patch of new Node types, without changing</span></span><br><span class="line"><span class="comment">// interface of ReprPrinter.</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">ReprPrinter</span> &#123;</span></span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">std::ostream&amp; stream;</span><br><span class="line">the dispatch function.</span><br><span class="line">   <span class="function"><span class="keyword">void</span> <span class="title">print</span><span class="params">(Expr e)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">const</span> <span class="keyword">static</span> FType&amp; f = *<span class="built_in">vtable</span>();</span><br><span class="line">     <span class="built_in">f</span>(e, <span class="keyword">this</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">   <span class="keyword">using</span> FType = NodeFunctor&lt;<span class="built_in"><span class="keyword">void</span></span> (<span class="keyword">const</span> ObjectRef&amp;, ReprPrinter* )&gt;;</span><br><span class="line">  <span class="comment">// function to return global function table</span></span><br><span class="line">    <span class="function"><span class="keyword">static</span> FType&amp; <span class="title">vtable</span><span class="params">()</span></span>;</span><br><span class="line"> &#125;;</span><br><span class="line"> <span class="comment">// in cpp/cc file</span></span><br><span class="line">  <span class="function">ReprPrinter::FType&amp; <span class="title">ReprPrinter::vtable</span><span class="params">()</span> </span>&#123; <span class="comment">// NOLINT(*)</span></span><br><span class="line">   <span class="keyword">static</span> FType inst; <span class="keyword">return</span> inst;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line"><span class="built_in">TVM_STATIC_IR_FUNCTOR</span>(ReprPrinter, vtable)</span><br><span class="line"> .set_dispatch&lt;Add&gt;([](<span class="keyword">const</span> ObjectRef&amp; ref, ReprPrinter* p) &#123;</span><br><span class="line">   <span class="keyword">auto</span>* n = <span class="keyword">static_cast</span>&lt;<span class="keyword">const</span> Add*&gt;(ref.<span class="built_in">get</span>());</span><br><span class="line">   p-&gt;<span class="built_in">print</span>(n-&gt;a);</span><br><span class="line">   p-&gt;stream &lt;&lt; <span class="string">&#x27;+&#x27;</span></span><br><span class="line">    p-&gt;<span class="built_in">print</span>(n-&gt;b);</span><br><span class="line">&#125;);</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>上述打打印类有两种实现方式</p>
+<ol>
+<li>写很多的 print(Expr e) 的多态实现， 如print(Add e) 等</li>
+<li>采用静态 vtable的,对函数进行注册面向add,min等，在外部的打印类只有print(Expr e)一个入口，前提的继承是 ObjectRef &lt;- Expr &lt;- Add等， 并且次注册可以在任意cpp里完成，因为ReprPrinter::vtable()是静态的</li>
+</ol>
+<p>在类ReprPrinter中包含<br><code>using FType = NodeFunctor&lt;void (const ObjectRef&amp;, ReprPrinter* )&gt;;</code><br>这表明 vtable里注册的函数形式的输入参数为 <code>const ObjectRef&amp;, ReprPrinter*</code> 返回值void，通过 ObjectRef进行多态</p>
+<p><code>static FType&amp; vtable();</code>返回静态vtable的引用</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">ReprPrinter::FType&amp; <span class="title">ReprPrinter::vtable</span><span class="params">()</span> </span>&#123;</span><br><span class="line">  <span class="keyword">static</span> FType inst;</span><br><span class="line">  <span class="keyword">return</span> inst;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>TVM_STATIC_IR_FUNCTOR(ReprPrinter, vtable).set_dispatch&lt;Add&gt; ...</code> 展开为</p>
+<p><code>static TVM_ATTRIBUTE_UNUSED auto&amp; __make_functor_ReprPrinter__count__ ReprPrinter::vtable().set_dispatch&lt;Add&gt; ...</code></p>
+<p>__COUNTER__为编译宏，展开为次数<br>含义是定义一个静态变量<code>__make_functor_ReprPrinter__count__</code>，并使用 <code>ReprPrinter::vtable().set_dispatch&lt;Add&gt; ...</code> 进行初始化，在初始化里，将函数注册进去</p>
+<h3 id="前提"><a href="#前提" class="headerlink" title="前提"></a>前提</h3><p>1.ObjetctRef里有type_type的定义这表明了不同子类的type_index_是不同的，这个特性给自己的vtabke提供了索引</p>
+<p>2.静态变量的初始化是在程序开始之前，一般存储在.bss或者.data段上，并且静态变量的初始化可以调用函数<code>static int aa = func1()</code>是合法的</p>
+<hr>
+<p>注意:<br>此部分的返回需要通过静态函数的形式，如果采用静态变量会产生错误</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">ReprPrinter&#123;</span><br><span class="line">...</span><br><span class="line"><span class="keyword">static</span> FType vtable;  <span class="comment">//编译能过，产生链接错误</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+
+<h3 id="等效实现"><a href="#等效实现" class="headerlink" title="等效实现"></a>等效实现</h3><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;vector&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">CC</span>&#123;</span></span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    std::vector&lt;<span class="keyword">int</span>&gt; v;</span><br><span class="line">    <span class="function">CC&amp; <span class="title">push_back</span><span class="params">(<span class="keyword">int</span> in)</span></span>&#123;</span><br><span class="line">        v.<span class="built_in">push_back</span>(in);</span><br><span class="line">        <span class="keyword">return</span> *<span class="keyword">this</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">BB</span>&#123;</span></span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="keyword">int</span> kk;</span><br><span class="line">    CC v;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">AA</span>&#123;</span></span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="function"><span class="keyword">static</span> BB&amp; <span class="title">get</span><span class="params">()</span></span>&#123;</span><br><span class="line">        <span class="keyword">static</span> BB b;</span><br><span class="line">        <span class="keyword">return</span> b;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">static</span> BB bin;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">auto</span>&amp; ll = AA::<span class="built_in">get</span>().v.<span class="built_in">push_back</span>(<span class="number">123</span>);</span><br><span class="line"><span class="keyword">static</span> <span class="keyword">auto</span>&amp; ll2 = AA::bin.v.<span class="built_in">push_back</span>(<span class="number">123</span>);</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span>&#123;</span><br><span class="line">    std::cout &lt;&lt; ll.v.<span class="built_in">size</span>()  &lt;&lt; std::endl;</span><br><span class="line"></span><br><span class="line">    std::cout&lt;&lt; ll2.v.<span class="built_in">size</span>() &lt;&lt; std::endl; <span class="comment">//编译错误</span></span><br><span class="line">    <span class="comment">//test.cpp:(.text+0xe4): undefined reference to `AA::bin&#x27;</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>链接错误的具体成应有待研究</p>
+<h3 id="值得学习的地方"><a href="#值得学习的地方" class="headerlink" title="值得学习的地方"></a>值得学习的地方</h3><p>1.静态变量的初始化条件与初始化阶段<br>2.通过静态变量与子类的类别标记实现多态调用vtable，类似c++虚函数的vtable，是一种查询手段<br>3.多分发</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/iyux.github.io/tags/TVM/" rel="tag"># TVM</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/iyux.github.io/2021/12/23/tencent-tuchuang/" rel="prev" title="腾讯云做图床">
+      <i class="fa fa-chevron-left"></i> 腾讯云做图床
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/iyux.github.io/2022/04/29/why-am-i-so-nervous/" rel="next" title="我为什么会紧张啊">
+      我为什么会紧张啊 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%94%A8%E6%B3%95"><span class="nav-number">1.</span> <span class="nav-text">用法</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%89%8D%E6%8F%90"><span class="nav-number">1.1.</span> <span class="nav-text">前提</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%AD%89%E6%95%88%E5%AE%9E%E7%8E%B0"><span class="nav-number">1.2.</span> <span class="nav-text">等效实现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%80%BC%E5%BE%97%E5%AD%A6%E4%B9%A0%E7%9A%84%E5%9C%B0%E6%96%B9"><span class="nav-number">1.3.</span> <span class="nav-text">值得学习的地方</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="yux"
+      src="/iyux.github.io/images/head.jpg">
+  <p class="site-author-name" itemprop="name">yux</p>
+  <div class="site-description" itemprop="description">虚假快乐小牛马</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/iyux.github.io/archives/">
+        
+          <span class="site-state-item-count">6</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/iyux.github.io/categories/">
+          
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/iyux.github.io/tags/">
+          
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/iyux" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;iyux" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:yux.scse@gmail.com" title="E-Mail → mailto:yux.scse@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">yux</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/iyux.github.io/lib/anime.min.js"></script>
+  <script src="/iyux.github.io/lib/velocity/velocity.min.js"></script>
+  <script src="/iyux.github.io/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/iyux.github.io/js/utils.js"></script>
+
+<script src="/iyux.github.io/js/motion.js"></script>
+
+
+<script src="/iyux.github.io/js/schemes/pisces.js"></script>
+
+
+<script src="/iyux.github.io/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
